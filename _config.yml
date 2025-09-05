@@ -1,0 +1,16 @@
+title: "shadowlcz's Blog"
+description: "A personal blog powered by Jekyll and GitHub Pages."
+author: "shadowlcz"
+markdown: kramdown
+theme: minima
+
+collections:
+  posts:
+    output: true
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+# Optional but recommended
+show_excerpts: true
