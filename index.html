@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ 生日快乐！ ✨</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #9370DB; /* 仙气飘飘的淡紫色 (MediumPurple) */
+            --light-purple: #B19CD9; /* 浅紫色 */
+            --dark-purple: #4B0082;  /* 深紫色 (Indigo) */
+            --heart-color: #FF6B6B; /* 显眼的爱心颜色 */
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-color: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            /* 核心修改：移除这里的 cursor: none;，交由 JS 动态控制 */
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 80%, var(--dark-purple) 100%);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Ma Shan Zheng', cursive;
+            color: var(--text-color);
+            perspective: 1000px;
+        }
+
+        /* -------------------------------------------------- */
+        /* Z-index 调整区域 */
+        /* -------------------------------------------------- */
+
+        #starfield {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
+        }
+        #fireworks-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; 
+        }
+        #snow-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; overflow: hidden;
+        }
+        #heart-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 60;
+        }
+
+        /* 3D 卡片容器 */
+        .card-container {
+            position: relative;
+            z-index: 10; 
+            width: 500px; 
+            max-width: 95%; 
+            padding: 40px;
+            transform-style: preserve-3d;
+            transition: transform 0.1s;
+        }
+
+        /* -------------------------------------------------- */
+        /* 自定义爱心光标样式 (美化) */
+        /* -------------------------------------------------- */
+        #custom-cursor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 18px; /* 略微缩小 */
+            height: 18px;
+            z-index: 100;
+            transform: translate(-50%, -50%) rotate(-45deg); 
+            pointer-events: none; 
+            transition: transform 0.05s ease-out, opacity 0.3s;
+        }
+        
+        .cursor-heart {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: var(--heart-color); 
+            border-radius: 4px; /* 减少圆角，更像爱心底部 */
+            box-shadow: 0 0 5px var(--primary-color); /* 添加紫色光晕 */
+        }
+        .cursor-heart::before,
+        .cursor-heart::after {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%; /* 保持圆形 */
+            background-color: var(--heart-color);
+        }
+        /* 左上角半圆 */
+        .cursor-heart::before {
+            top: -50%;
+            left: 0;
+        }
+        /* 右上角半圆 */
+        .cursor-heart::after {
+            top: 0;
+            left: 50%;
+        }
+
+        /* -------------------------------------------------- */
+        /* 启动页样式修正 */
+        /* -------------------------------------------------- */
+        .start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #090a0f;
+            z-index: 100; display: flex; flex-direction: column; justify-content: center;
+            align-items: center; transition: opacity 1s ease;
+            cursor: default; /* 启动页显示原生鼠标 */
+        }
+        .btn-glow {
+            /* ... (保持不变) ... */
+            cursor: pointer; /* 确保按钮上有指针变化 */
+        }
+
+
+        /* -------------------------------------------------- */
+        /* 鼠标爱心飘散效果样式（保持不变） */
+        /* -------------------------------------------------- */
+
+        .heart {
+            position: absolute;
+            width: 15px; 
+            height: 15px;
+            background-color: var(--primary-color);
+            transform: rotate(-45deg);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 60;
+            transition: transform 0.5s, opacity 0.5s;
+        }
+        .heart::before,
+        .heart::after {
+            content: "";
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+        }
+        .heart::before { top: -7.5px; left: 0; }
+        .heart::after { top: 0; left: 7.5px; }
+
+        @keyframes fadeOutUp {
+            0% { transform: translate(0, 0) scale(1) rotate(-45deg); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0) rotate(-45deg); opacity: 0; }
+        }
+        
+        /* -------------------------------------------------- */
+        /* 其他样式（保持不变） */
+        /* -------------------------------------------------- */
+        
+        @media (max-width: 768px) {
+            .card-container { width: 95%; padding: 10px; }
+        }
+        .snowflake { position: absolute; background-color: #fff; border-radius: 50%; opacity: 0; animation: fall linear forwards; }
+        @keyframes fall {
+            0% { transform: translateY(-100px) translateX(0px); opacity: 0; }
+            10% { opacity: 0.9; }
+            90% { opacity: 0.9; }
+            100% { transform: translateY(105vh) translateX(var(--drift)); opacity: 0; }
+        }
+        .glass-card {
+            background: var(--glass-bg); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border); border-radius: 20px; padding: 30px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.2); text-align: center; transform: translateZ(20px);
+            display: none; opacity: 0; transition: opacity 1.5s ease;
+        }
+        .photo-wrapper {
+            width: 150px; height: 150px; margin: 0 auto 20px; border-radius: 50%; padding: 5px;
+            background: linear-gradient(45deg, var(--light-purple), var(--primary-color)); 
+            box-shadow: 0 0 20px var(--primary-color), 0 0 30px var(--dark-purple); 
+            transform: translateZ(50px);
+        }
+        .photo-wrapper img {
+            width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.8);
+        }
+        h1 {
+            font-family: 'Cinzel', serif; font-size: 2.5em; margin-bottom: 15px;
+            background: linear-gradient(to right, #fff, var(--primary-color)); 
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+            text-shadow: 0 0 10px rgba(147, 112, 219, 0.5); 
+            transform: translateZ(40px);
+        }
+        .message-box {
+            font-size: 1.3em; line-height: 1.6; min-height: 120px; text-align: left;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5); transform: translateZ(30px); margin-bottom: 20px;
+        }
+        .cursor { display: inline-block; width: 2px; background-color: #fff; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .music-control {
+            font-size: 0.8em; color: rgba(255,255,255,0.6); cursor: pointer; transform: translateZ(30px);
+            margin-top: 10px; border: 1px solid rgba(255,255,255,0.3); padding: 5px 15px;
+            border-radius: 20px; display: inline-block; transition: 0.3s;
+        }
+        .music-control:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn-glow {
+            padding: 15px 40px; font-size: 1.5rem; background: transparent; color: #fff;
+            border: 2px solid var(--primary-color); border-radius: 50px; cursor: pointer;
+            font-family: 'Cinzel', serif; position: relative; transition: 0.5s;
+            box-shadow: 0 0 10px var(--primary-color), 0 0 40px var(--light-purple);
+        }
+        .btn-glow:hover {
+            background: var(--primary-color); color: #000;
+            box-shadow: 0 0 20px var(--primary-color), 0 0 60px var(--light-purple);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="starfield"></canvas>
+    <canvas id="fireworks-overlay"></canvas>
+    <div id="snow-container"></div> 
+    <div id="heart-container"></div>
+    
+    <div id="custom-cursor">
+        <div class="cursor-heart"></div>
+    </div>
+    
+    <div class="start-overlay" id="startOverlay">
+        <button class="btn-glow" onclick="initPage()">ENTER THE GALAXY</button>
+        <p style="margin-top:20px; color:rgba(255,255,255,0.5); font-size: 0.9em;">(请开启声音体验最佳效果)</p>
+    </div>
+
+    <div class="card-container" id="cardContainer">
+        <div class="glass-card" id="mainCard">
+            <div class="photo-wrapper">
+                <img src="./source/cake.webp" alt="Her">
+            </div>
+            <h1>Happy Birthday</h1>
+            <div class="message-box">
+                <span id="typed-text"></span><span class="cursor">|</span>
+            </div>
+            <div class="music-control" id="musicControl" onclick="toggleMusic()">🎵 Music: On/Off</div>
+        </div>
+    </div>
+
+    <audio id="bgMusic" loop>
+        <source src="./source/七里香.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        /**
+         * --------------------------------------------------
+         * 配置区域
+         * --------------------------------------------------
+         */
+        const CONFIG = {
+            text: "仙气飘飘的 邓佳 宝宝：\n\n生日快乐！在这么个特殊的日子里，很抱歉我没有能够陪在你身边。\n\n爱上你是我今年遇到的最美好的事情！ \n 你能走进我的生活，这让我充满了希望和动力。 \n\n我很期待我们下一次的相聚，\n无论是国内还是国外，或是现实或是梦里。\n\n你是我的女孩，是我永远的偏爱，\n李呈智❤️",
+            typeSpeed: 180
+        };
+
+        /**
+         * --------------------------------------------------
+         * CUSTOM CURSOR LOGIC (美化和切换逻辑)
+         * --------------------------------------------------
+         */
+        const customCursor = document.getElementById('custom-cursor');
+        
+        // 实时更新光标位置
+        document.addEventListener('mousemove', (e) => {
+            customCursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px) rotate(-45deg)`;
+        });
+
+        // 默认隐藏自定义光标，只在主页显示
+        customCursor.style.opacity = '0';
+        
+        // 监听进入/离开 body 区域，以确保光标在边界隐藏
+        document.body.addEventListener('mouseleave', () => {
+             // 仅当 body 的光标被隐藏时，才隐藏自定义光标
+            if (document.body.style.cursor === 'none') {
+                 customCursor.style.opacity = '0';
+            }
+        });
+        document.body.addEventListener('mouseenter', () => {
+            if (document.body.style.cursor === 'none') {
+                customCursor.style.opacity = '1';
+            }
+        });
+
+        /**
+         * --------------------------------------------------
+         * MOUSE HEART LOGIC 
+         * --------------------------------------------------
+         */
+
+        const heartContainer = document.getElementById('heart-container');
+
+        function createHeart(x, y) {
+            const heart = document.createElement('div');
+            heart.classList.add('heart');
+            
+            heart.style.left = `${x - 7.5}px`; 
+            heart.style.top = `${y - 7.5}px`;
+
+            const dx = (Math.random() - 0.5) * 150; 
+            const dy = -100 - Math.random() * 150; 
+
+            heart.style.setProperty('--dx', `${dx}px`);
+            heart.style.setProperty('--dy', `${dy}px`);
+            
+            const duration = Math.random() * 1.5 + 1.5; 
+            heart.style.animation = `fadeOutUp ${duration}s ease-out forwards`;
+
+            heartContainer.appendChild(heart);
+
+            setTimeout(() => {
+                heart.remove();
+            }, duration * 1000);
+        }
+
+        // 监听鼠标移动事件（持续性爱心）
+        document.addEventListener('mousemove', (e) => {
+            if (document.body.style.cursor === 'none' && Math.random() < 0.1) {
+                createHeart(e.clientX, e.clientY);
+            }
+        });
+        
+        // 监听点击事件（爆发性爱心）
+        document.addEventListener('click', (e) => {
+            if (document.body.style.cursor === 'none') {
+                for(let i=0; i<5; i++) {
+                    createHeart(e.clientX, e.clientY);
+                }
+            }
+        });
+
+
+        /**
+         * --------------------------------------------------
+         * 核心逻辑 (Canvas & 动画)
+         * --------------------------------------------------
+         */
+
+        function getRandomColor() {
+            const colors = ['#9370DB', '#B19CD9', '#E0BBE4', '#FFC72C', '#FF6B6B', '#8BE9FD', '#FFFFFF']; 
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // --------------------------------------------------
+        // CANVAS SETUP
+        // --------------------------------------------------
+        
+        const starCanvas = document.getElementById('starfield');
+        const starCtx = starCanvas.getContext('2d');
+        const fireworkCanvas = document.getElementById('fireworks-overlay');
+        const fireworkCtx = fireworkCanvas.getContext('2d');
+
+        let width, height;
+        let particles = []; 
+        let fireworks = []; 
+
+        function resize() {
+            width = starCanvas.width = fireworkCanvas.width = window.innerWidth;
+            height = starCanvas.height = fireworkCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --------------------------------------------------
+        // PARTICLES & ANIMATION LOOPS (保持不变)
+        // --------------------------------------------------
+        
+        class Star {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.size = Math.random() * 2;
+                this.brightness = Math.random();
+            }
+            update() {
+                this.brightness += Math.random() * 0.05 - 0.025;
+                if(this.brightness < 0) this.brightness = 0;
+                if(this.brightness > 1) this.brightness = 1;
+            }
+            draw() {
+                starCtx.fillStyle = `rgba(255, 255, 255, ${this.brightness})`;
+                starCtx.beginPath();
+                starCtx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                starCtx.fill();
+            }
+        }
+        class FireworkParticle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = Math.random() * 6 + 2; 
+                this.vx = Math.cos(angle) * velocity;
+                this.vy = Math.sin(angle) * velocity;
+                this.life = 1;
+                this.decay = Math.random() * 0.02 + 0.01; 
+                this.gravity = 0.08; this.friction = 0.98; 
+            }
+            update() {
+                this.vx *= this.friction; this.vy *= this.friction; this.vy += this.gravity; 
+                this.x += this.vx; this.y += this.vy; this.life -= this.decay;
+            }
+            draw() {
+                fireworkCtx.globalAlpha = this.life; fireworkCtx.fillStyle = this.color;
+                fireworkCtx.beginPath(); fireworkCtx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                fireworkCtx.fill(); fireworkCtx.globalAlpha = 1;
+            }
+        }
+        for(let i=0; i<200; i++) particles.push(new Star());
+
+        function animateStars() {
+            starCtx.fillStyle = 'rgba(15, 12, 41, 0.2)'; starCtx.fillRect(0, 0, width, height);
+            particles.forEach(p => { p.update(); p.draw(); });
+        }
+        function animateFireworks() {
+            fireworkCtx.fillStyle = 'rgba(0, 0, 0, 0.1)'; fireworkCtx.fillRect(0, 0, width, height);
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                fireworks[i].update(); fireworks[i].draw();
+                if (fireworks[i].life <= 0) fireworks.splice(i, 1);
+            }
+        }
+        function animate() {
+            animateStars(); animateFireworks();  requestAnimationFrame(animate);
+        }
+        function launchFirework(x, y) {
+            const color = getRandomColor();
+            const numParticles = Math.floor(Math.random() * 40) + 80; 
+            for(let i=0; i<numParticles; i++) {
+                fireworks.push(new FireworkParticle(x, y, color));
+            }
+            starCtx.fillStyle = `rgba(${parseInt(color.slice(1,3), 16)}, ${parseInt(color.slice(3,5), 16)}, ${parseInt(color.slice(5,7), 16)}, 0.4)`;
+            starCtx.fillRect(0, 0, width, height);
+        }
+        function startFullsreenFireworks() {
+            setInterval(() => {
+                const randomX = Math.random() * width;
+                const randomY = height * (0.25 + Math.random() * 0.5); 
+                launchFirework(randomX, randomY);
+            }, 400); 
+        }
+        const snowContainer = document.getElementById('snow-container');
+        function createSnowflake() {
+            const snowflake = document.createElement('div'); snowflake.classList.add('snowflake');
+            const size = Math.random() * 8 + 4; const duration = Math.random() * 15 + 15; 
+            const driftAmount = (Math.random() - 0.5) * 400; const delay = Math.random() * 5; 
+            const startX = Math.random() * window.innerWidth; 
+            snowflake.style.width = `${size}px`; snowflake.style.height = `${size}px`;
+            snowflake.style.left = `${startX}px`; snowflake.style.animationDuration = `${duration}s`;
+            snowflake.style.animationDelay = `${delay}s`; snowflake.style.setProperty('--drift', `${driftAmount}px`); 
+            snowContainer.appendChild(snowflake);
+            setTimeout(() => { snowflake.remove(); }, (duration + delay) * 1000);
+        }
+        function startSnowfall() {
+            setInterval(createSnowflake, 150);
+        }
+
+        // --------------------------------------------------
+        // INITIALIZATION & UI
+        // --------------------------------------------------
+
+        // 3D 视差效果 (Parallax Tilt) 
+        const container = document.getElementById('cardContainer');
+        document.addEventListener('mousemove', (e) => {
+            if (window.innerWidth < 768) return; 
+            const xAxis = (window.innerWidth / 2 - e.pageX) / 25;
+            const yAxis = (window.innerHeight / 2 - e.pageY) / 25;
+            container.style.transform = `rotateY(${xAxis}deg) rotateX(${yAxis}deg)`;
+        });
+        document.addEventListener('mouseleave', () => {
+            container.style.transform = `rotateY(0deg) rotateX(0deg)`;
+            container.style.transition = 'transform 0.5s ease';
+        });
+        document.addEventListener('mouseenter', () => {
+            container.style.transition = 'none';
+        });
+
+
+        function initPage() {
+            const overlay = document.getElementById('startOverlay');
+            const card = document.getElementById('mainCard');
+            const music = document.getElementById('bgMusic');
+            const musicControl = document.getElementById('musicControl');
+
+            // 核心修改 2: 启动主页逻辑
+            document.body.style.cursor = 'none'; // 隐藏原生鼠标
+            customCursor.style.opacity = '1';    // 显示自定义光标
+
+            music.play().then(() => {
+                musicControl.textContent = '🎵 Music: Playing';
+            }).catch(error => {
+                musicControl.textContent = '⚠️ Music: Click to play';
+                console.error("音乐播放失败 (浏览器限制)", error);
+            });
+            
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                card.style.display = 'block';
+                
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    startTypeWriter(); 
+                }, 50);
+            }, 1000); 
+
+            if (!window.animationRunning) {
+                animate(); 
+                window.animationRunning = true;
+            }
+            startSnowfall();     
+            startFullsreenFireworks(); 
+        }
+
+        function startTypeWriter() {
+            let i = 0;
+            const textElement = document.getElementById('typed-text');
+            
+            function type() {
+                if (i < CONFIG.text.length) {
+                    const char = CONFIG.text.charAt(i);
+                    textElement.innerHTML += char === '\n' ? '<br>' : char;
+                    i++;
+                    setTimeout(type, CONFIG.typeSpeed);
+                } else {
+                    document.querySelector('.cursor').style.display = 'none';
+                }
+            }
+            type();
+        }
+
+        function toggleMusic() {
+            const music = document.getElementById('bgMusic');
+            const musicControl = document.getElementById('musicControl');
+            if (music.paused) {
+                music.play().then(() => {
+                     musicControl.textContent = '🎵 Music: Playing';
+                }).catch(() => {
+                     musicControl.textContent = '⚠️ Music: Play failed';
+                });
+            } else {
+                music.pause();
+                musicControl.textContent = '🎵 Music: Paused';
+            }
+        }
+    </script>
+</body>
+</html>
